@@ -16,6 +16,7 @@ import {
   PathnameSchema,
   RouteBasePathSchema,
   ContentVisibilitySchema,
+  FrontMatterLastUpdateSchema,
 } from '../validationSchemas';
 
 function createTestHelpers({
@@ -97,22 +98,22 @@ describe('validation schemas', () => {
     testOK(true);
     testOK(false);
     testOK({});
-    testOK({tag: '+++'});
     testOK({keywords: ['info', 'tip']});
     testOK({keywords: ['info', 'tip'], extendDefaults: true});
     testOK({keywords: ['info', 'tip'], extendDefaults: false});
     testOK({keywords: []});
     testOK({keywords: [], extendDefaults: true}); // noop
     testOK({keywords: [], extendDefaults: false}); // disable admonitions
-    testOK({tag: '+++', keywords: ['info', 'tip']});
-    testOK({tag: '+++', keywords: ['custom-keyword'], extendDefaults: true});
-    testOK({tag: '+++', keywords: ['custom-keyword'], extendDefaults: false});
+    testOK({keywords: ['custom-keyword'], extendDefaults: true});
+    testOK({keywords: ['custom-keyword'], extendDefaults: false});
 
     testFail(3);
     testFail([]);
     testFail({unknownAttribute: 'val'});
     testFail({tag: ''});
     testFail({keywords: ['custom-keyword'], extendDefaults: 42});
+    testFail({tag: '+++'});
+    testFail({tag: '+++', keywords: ['info', 'tip']});
 
     // Legacy types
     testFail({
@@ -215,5 +216,29 @@ describe('validation schemas', () => {
     testFail({unlisted: 'bad string'});
     testFail({unlisted: 42});
     testFail({draft: true, unlisted: true});
+  });
+
+  it('frontMatterLastUpdateSchema schema', () => {
+    const {testFail, testOK} = createTestHelpers({
+      schema: FrontMatterLastUpdateSchema,
+    });
+
+    testOK(undefined);
+    testOK({date: '2021-01-01'});
+    testOK({date: '2021-01'});
+    testOK({date: '2021'});
+    testOK({date: new Date()});
+    testOK({author: 'author'});
+    testOK({author: 'author', date: '2021-01-01'});
+    testOK({author: 'author', date: new Date()});
+
+    testFail(null);
+    testFail({});
+    testFail('string');
+    testFail(42);
+    testFail(true);
+    testFail([]);
+    testFail({author: 23});
+    testFail({date: '20-20-20'});
   });
 });

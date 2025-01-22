@@ -8,9 +8,9 @@
 import {
   isValidPathname,
   DEFAULT_PLUGIN_ID,
-  type Tag,
-  addLeadingSlash,
+  type FrontMatterTag,
 } from '@docusaurus/utils';
+import {addLeadingSlash} from '@docusaurus/utils-common';
 import Joi from './Joi';
 import {JoiFrontMatter} from './JoiFrontMatter';
 
@@ -36,18 +36,12 @@ const MarkdownPluginsSchema = Joi.array()
 
 export const RemarkPluginsSchema = MarkdownPluginsSchema;
 export const RehypePluginsSchema = MarkdownPluginsSchema;
-
-const LegacyAdmonitionConfigSchema = Joi.forbidden().messages({
-  'any.unknown': `The Docusaurus admonitions system has changed, and the option {#label} does not exist anymore.
-You now need to swizzle the admonitions component to provide UI customizations such as icons.
-Please refer to https://github.com/facebook/docusaurus/pull/7152 for detailed upgrade instructions.`,
-});
+export const RecmaPluginsSchema = MarkdownPluginsSchema;
 
 export const AdmonitionsSchema = JoiFrontMatter.alternatives()
   .try(
     JoiFrontMatter.boolean().required(),
     JoiFrontMatter.object({
-      tag: JoiFrontMatter.string(),
       keywords: JoiFrontMatter.array().items(
         JoiFrontMatter.string(),
         // Apparently this is how we tell job to accept empty arrays...
@@ -55,10 +49,10 @@ export const AdmonitionsSchema = JoiFrontMatter.alternatives()
       ),
       extendDefaults: JoiFrontMatter.boolean(),
 
-      // TODO Remove before 2023
-      customTypes: LegacyAdmonitionConfigSchema,
-      icons: LegacyAdmonitionConfigSchema,
-      infima: LegacyAdmonitionConfigSchema,
+      // TODO Remove before 2024
+      tag: Joi.any().forbidden().messages({
+        'any.unknown': `It is not possible anymore to use a custom admonition tag. The only admonition tag supported is ':::' (Markdown Directive syntax)`,
+      }),
     }).required(),
   )
   .default(true)
@@ -98,7 +92,7 @@ export const PathnameSchema = Joi.string()
     return val;
   })
   .message(
-    '{{#label}} is not a valid pathname. Pathname should start with slash and not contain any domain or query string.',
+    '{{#label}} ({{#value}}) is not a valid pathname. Pathname should start with slash and not contain any domain or query string.',
   );
 
 // Normalized schema for url path segments: baseUrl + routeBasePath...
@@ -124,7 +118,9 @@ export const RouteBasePathSchema = Joi
 const FrontMatterTagSchema = JoiFrontMatter.alternatives()
   .try(
     JoiFrontMatter.string().required(),
-    JoiFrontMatter.object<Tag>({
+    // TODO Docusaurus v4 remove this legacy front matter tag object form
+    //  users should use tags.yml instead
+    JoiFrontMatter.object<FrontMatterTag>({
       label: JoiFrontMatter.string().required(),
       permalink: JoiFrontMatter.string().required(),
     }).required(),
@@ -174,3 +170,16 @@ export const ContentVisibilitySchema = JoiFrontMatter.object<ContentVisibility>(
       "Can't be draft and unlisted at the same time.",
   })
   .unknown();
+
+export const FrontMatterLastUpdateErrorMessage =
+  '{{#label}} does not look like a valid last update object. Please use an author key with a string or a date with a string or Date.';
+
+export const FrontMatterLastUpdateSchema = Joi.object({
+  author: Joi.string(),
+  date: Joi.date().raw(),
+})
+  .or('author', 'date')
+  .messages({
+    'object.missing': FrontMatterLastUpdateErrorMessage,
+    'object.base': FrontMatterLastUpdateErrorMessage,
+  });

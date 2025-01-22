@@ -5,11 +5,13 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import React, {cloneElement} from 'react';
+import React, {cloneElement, type ReactElement, type ReactNode} from 'react';
 import clsx from 'clsx';
 import {
   useScrollPositionBlocker,
   useTabs,
+  sanitizeTabsChildren,
+  type TabItemProps,
 } from '@docusaurus/theme-common/internal';
 import useIsBrowser from '@docusaurus/useIsBrowser';
 import type {Props} from '@theme/Tabs';
@@ -85,7 +87,9 @@ function TabList({
           tabIndex={selectedValue === value ? 0 : -1}
           aria-selected={selectedValue === value}
           key={value}
-          ref={(tabControl) => tabRefs.push(tabControl)}
+          ref={(tabControl) => {
+            tabRefs.push(tabControl);
+          }}
           onKeyDown={handleKeydown}
           onClick={handleTabChange}
           {...attributes}
@@ -109,21 +113,24 @@ function TabContent({
   children,
   selectedValue,
 }: Props & ReturnType<typeof useTabs>) {
-  // eslint-disable-next-line no-param-reassign
-  children = Array.isArray(children) ? children : [children];
+  const childTabs = (Array.isArray(children) ? children : [children]).filter(
+    Boolean,
+  ) as ReactElement<TabItemProps>[];
   if (lazy) {
-    const selectedTabItem = children.find(
+    const selectedTabItem = childTabs.find(
       (tabItem) => tabItem.props.value === selectedValue,
     );
     if (!selectedTabItem) {
       // fail-safe or fail-fast? not sure what's best here
       return null;
     }
-    return cloneElement(selectedTabItem, {className: 'margin-top--md'});
+    return cloneElement(selectedTabItem, {
+      className: clsx('margin-top--md', selectedTabItem.props.className),
+    });
   }
   return (
     <div className="margin-top--md">
-      {children.map((tabItem, i) =>
+      {childTabs.map((tabItem, i) =>
         cloneElement(tabItem, {
           key: i,
           hidden: tabItem.props.value !== selectedValue,
@@ -133,24 +140,25 @@ function TabContent({
   );
 }
 
-function TabsComponent(props: Props): JSX.Element {
+function TabsComponent(props: Props): ReactNode {
   const tabs = useTabs(props);
   return (
     <div className={clsx('tabs-container', styles.tabList)}>
-      <TabList {...props} {...tabs} />
-      <TabContent {...props} {...tabs} />
+      <TabList {...tabs} {...props} />
+      <TabContent {...tabs} {...props} />
     </div>
   );
 }
 
-export default function Tabs(props: Props): JSX.Element {
+export default function Tabs(props: Props): ReactNode {
   const isBrowser = useIsBrowser();
   return (
     <TabsComponent
       // Remount tabs after hydration
       // Temporary fix for https://github.com/facebook/docusaurus/issues/5653
       key={String(isBrowser)}
-      {...props}
-    />
+      {...props}>
+      {sanitizeTabsChildren(props.children)}
+    </TabsComponent>
   );
 }
